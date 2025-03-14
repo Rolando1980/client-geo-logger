@@ -103,9 +103,37 @@ const ClientForm = () => {
   }, [isEditing, id, user?.uid]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
+  const { name, value } = e.target;
+  
+  if (name === "documentNumber") {
+    let isValid = true;
+    let newValue = value;
+    
+    // Validaciones específicas según el tipo de documento
+    if (formData.documentType === "DNI") {
+      // Solo permitir dígitos y máximo 8 caracteres
+      newValue = value.replace(/\D/g, '').slice(0, 8);
+    } else if (formData.documentType === "RUC") {
+      // Solo permitir dígitos y máximo 11 caracteres
+      newValue = value.replace(/\D/g, '').slice(0, 11);
+      // Validar que comience con 10, 15, 17 o 20
+      if (newValue.length >= 2) {
+        const prefix = newValue.substring(0, 2);
+        isValid = ["10", "15", "17", "20"].includes(prefix);
+      }
+    } else {
+      // Para CE y Otro: máximo 20 caracteres
+      newValue = value.slice(0, 20);
+    }
+    
+    // Solo actualizar si es un valor válido
+    if (isValid) {
+      setFormData((prev) => ({ ...prev, [name]: newValue }));
+    }
+  } else {
     setFormData((prev) => ({ ...prev, [name]: value }));
-  };
+  }
+};
 
   const handleLocationChange = (value: string) => {
     const [district, province, department] = value.split(", ");
