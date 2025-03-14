@@ -1,9 +1,7 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, Save } from "lucide-react";
-import { v4 as uuidv4 } from "uuid";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -14,11 +12,11 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import PageTransition from "@/components/PageTransition";
 import Navbar from "@/components/Navbar";
-import { useClients } from "@/hooks/useClients";
 import { useAuth } from "@/hooks/useAuth";
+import { database } from "@/firebase/config";
+import { ref, get, set, update, push } from "firebase/database";
 import { DocumentType } from "@/types/client";
 
-// Datos para los selectores de ubicación
 const locationOptions = [
   { district: "Comas", province: "Lima", department: "Lima" },
   { district: "Breña", province: "Lima", department: "Lima" },
@@ -32,56 +30,77 @@ const locationOptions = [
   { district: "Lince", province: "Lima", department: "Lima" },
 ];
 
+interface ClientFormState {
+  name: string;
+  address: string;
+  district: string;
+  province: string;
+  department: string;
+  email: string;
+  documentType: DocumentType;
+  documentNumber: string;
+  contactName: string;
+  phone: string;
+  notes: string;
+  userId: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 const ClientForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { saveClient, getClient, loading } = useClients();
   const { user } = useAuth();
   const isEditing = !!id;
+  const [loading, setLoading] = useState(false);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ClientFormState>({
     name: "",
     address: "",
     district: "",
     province: "",
     department: "",
     email: "",
-    documentType: "DNI" as DocumentType,
+    documentType: "DNI",
     documentNumber: "",
     contactName: "",
     phone: "",
     notes: "",
+    userId: user?.uid || "",
   });
 
   const [locationDisplay, setLocationDisplay] = useState("");
 
   useEffect(() => {
-    if (isEditing && id) {
-      const fetchClient = async () => {
-        const clientData = await getClient(id);
-        if (clientData) {
-          setFormData({
-            name: clientData.name,
-            address: clientData.address,
-            district: clientData.district,
-            province: clientData.province,
-            department: clientData.department,
-            email: clientData.email || "",
-            documentType: clientData.documentType,
-            documentNumber: clientData.documentNumber,
-            contactName: clientData.contactName,
-            phone: clientData.phone || "",
-            notes: clientData.notes || "",
-          });
+    const fetchClient = async () => {
+      if (isEditing && id && user?.uid) {
+        try {
+          const clientRef = ref(database, `clients/${id}`);
+          const snapshot = await get(clientRef);
           
-          setLocationDisplay(`${clientData.district}, ${clientData.province}, ${clientData.department}`);
+          if (snapshot.exists()) {
+            const clientData = snapshot.val();
+            setFormData({
+              ...clientData,
+              userId: user.uid,
+            });
+            setLocationDisplay(
+              `${clientData.district}, ${clientData.province}, ${clientData.department}`
+            );
+          }
+        } catch (error) {
+          toast({
+            title: "Error",
+            description: "No se pudo cargar el cliente",
+            variant: "destructive",
+          });
         }
-      };
-      
-      fetchClient();
-    }
-  }, [isEditing, id, getClient]);
+      }
+    };
+
+    fetchClient();
+  }, [isEditing, id, user?.uid]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -101,20 +120,59 @@ const ClientForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.name || !formData.address || !formData.district || !formData.documentType || !formData.documentNumber) {
+    setLoading(true);
+
+    if (!user) {
+      toast({
+        title: "Error de autenticación",
+        description: "Debes iniciar sesión para realizar esta acción",
+        variant: "destructive",
+      });
+      setLoading(false);
+      return;
+    }
+
+    if (!formData.name || !formData.address || !formData.district || 
+        !formData.documentType || !formData.documentNumber) {
       toast({
         title: "Campos incompletos",
         description: "Por favor complete los campos obligatorios",
         variant: "destructive",
       });
+      setLoading(false);
       return;
     }
-    
-    const result = await saveClient(formData);
-    
-    if (result) {
+
+    try {
+      const clientData = {
+        ...formData,
+        userId: user.uid,
+        updatedAt: new Date().toISOString(),
+        ...(!isEditing && { createdAt: new Date().toISOString() })
+      };
+
+      if (isEditing && id) {
+        await update(ref(database, `clients/${id}`), clientData);
+      } else {
+        const newClientRef = ref(database, 'clients');
+        await set(push(newClientRef), clientData);
+      }
+
+      toast({
+        title: isEditing ? "Cliente actualizado" : "Cliente creado",
+        description: `Los datos del cliente se han ${isEditing ? 'actualizado' : 'guardado'} correctamente`,
+      });
+      
       navigate("/clients");
+    } catch (error) {
+      console.error("Error al guardar cliente:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo guardar el cliente",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -182,6 +240,7 @@ const ClientForm = () => {
                   <Select 
                     value={locationDisplay}
                     onValueChange={handleLocationChange}
+                    required
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar ubicación" />
@@ -222,6 +281,7 @@ const ClientForm = () => {
                     value={formData.documentType} 
                     onValueChange={(value) => setFormData(prev => ({ ...prev, documentType: value as DocumentType }))}
                     className="flex space-x-4 mt-1"
+                    required
                   >
                     <div className="flex items-center space-x-1">
                       <RadioGroupItem value="DNI" id="dni" />
