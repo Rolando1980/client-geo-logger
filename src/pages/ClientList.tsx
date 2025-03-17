@@ -1,38 +1,78 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, PlusCircle, Filter } from "lucide-react";
+import { Search, PlusCircle } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import ClientCard from "@/components/ClientCard";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import PageTransition from "@/components/PageTransition";
+import { database } from "@/firebase/config";
+import { ref, query, orderByChild, equalTo, onValue } from "firebase/database";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/components/ui/use-toast";
 
-// Datos ficticios
-const mockClients = [
-  { id: "1", name: "Empresa ABC", address: "Calle Principal 123", lastVisit: "22/06/2023" },
-  { id: "2", name: "Distribuidora XYZ", address: "Av. Central 456" },
-  { id: "3", name: "Consultora 123", address: "Plaza Mayor 789", lastVisit: "15/05/2023" },
-  { id: "4", name: "Tecnología ACME", address: "Boulevard Norte 321", lastVisit: "10/06/2023" },
-  { id: "5", name: "Servicios Generales", address: "Calle Secundaria 654" },
-];
+interface Client {
+  id: string;
+  name: string;
+  address: string;
+  district: string;
+  province: string;
+  department: string;
+  documentType: string;
+  documentNumber: string;
+  phone?: string;
+  email?: string;
+  createdAt: string;
+}
 
 const ClientList = () => {
   const navigate = useNavigate();
-  const [clients, setClients] = useState(mockClients);
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const [clients, setClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filteredClients, setFilteredClients] = useState(clients);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const results = clients.filter((client) =>
-      client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      client.address.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    setFilteredClients(results);
-  }, [searchTerm, clients]);
+    if (!user?.uid) return;
 
-  const handleClientClick = (client: any) => {
+    const clientsRef = query(
+      ref(database, 'clients'),
+      orderByChild('userId'),
+      equalTo(user.uid)
+    );
+
+    const unsubscribe = onValue(clientsRef, (snapshot) => {
+      const clientsData: Client[] = [];
+      snapshot.forEach((childSnapshot) => {
+        clientsData.push({
+          id: childSnapshot.key || '',
+          ...childSnapshot.val()
+        });
+      });
+      setClients(clientsData);
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching clients:", error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los clientes",
+        variant: "destructive",
+      });
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [user?.uid]);
+
+  const filteredClients = clients.filter((client) =>
+    client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    client.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    client.documentNumber.includes(searchTerm)
+  );
+
+  const handleClientClick = (client: Client) => {
     navigate("/visit", { state: { selectedClient: client } });
   };
 
@@ -76,38 +116,47 @@ const ClientList = () => {
             </div>
           </header>
 
-          <AnimatePresence>
-            {filteredClients.length > 0 ? (
-              <div className="space-y-3">
-                {filteredClients.map((client, index) => (
-                  <motion.div
-                    key={client.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ delay: index * 0.05, duration: 0.3 }}
-                  >
-                    <ClientCard client={client} onClick={handleClientClick} />
-                  </motion.div>
-                ))}
-              </div>
-            ) : (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex flex-col items-center justify-center h-48 text-center"
-              >
-                <p className="text-brand-gray mb-2">No se encontraron clientes</p>
-                <Button
-                  onClick={handleAddNewClient}
-                  className="flex items-center gap-1 bg-brand-yellow text-black hover:brightness-110"
+          {loading ? (
+            <div className="flex justify-center items-center h-48">
+              <p>Cargando clientes...</p>
+            </div>
+          ) : (
+            <AnimatePresence>
+              {filteredClients.length > 0 ? (
+                <div className="space-y-3">
+                  {filteredClients.map((client, index) => (
+                    <motion.div
+                      key={client.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ delay: index * 0.05, duration: 0.3 }}
+                    >
+                      <ClientCard 
+                        client={client} 
+                        onClick={() => handleClientClick(client)}
+                      />
+                    </motion.div>
+                  ))}
+                </div>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex flex-col items-center justify-center h-48 text-center"
                 >
-                  <PlusCircle size={16} />
-                  <span>Agregar cliente</span>
-                </Button>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                  <p className="text-brand-gray mb-2">No se encontraron clientes</p>
+                  <Button
+                    onClick={handleAddNewClient}
+                    className="flex items-center gap-1 bg-brand-yellow text-black hover:brightness-110"
+                  >
+                    <PlusCircle size={16} />
+                    <span>Agregar cliente</span>
+                  </Button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          )}
         </div>
         
         <Navbar />

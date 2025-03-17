@@ -1,3 +1,4 @@
+export type DocumentType = "DNI" | "RUC" | "CE" | "Otro";
 
 export interface Client {
   id: string;
@@ -6,17 +7,11 @@ export interface Client {
   district: string;
   province: string;
   department: string;
-  email: string;
-  documentType: 'DNI' | 'RUC' | 'CE' | 'Otro';
+  documentType: DocumentType;
   documentNumber: string;
-  contactName: string;
-  phone: string;
-  notes?: string;
-  // Campos internos
-  status: string;
-  creationDate: string;
-  seller: string;
-  businessLine: string;
+  phone?: string;
+  email?: string;
+  userId: string;
+  createdAt: string;
+  updatedAt?: string;
 }
-
-export type DocumentType = 'DNI' | 'RUC' | 'CE' | 'Otro';
