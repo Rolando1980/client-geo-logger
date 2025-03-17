@@ -16,20 +16,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { database } from "@/firebase/config";
 import { ref, get, set, update, push } from "firebase/database";
 import { DocumentType } from "@/types/client";
-
-const locationOptions = [
-  { district: "Comas", province: "Lima", department: "Lima" },
-  { district: "Breña", province: "Lima", department: "Lima" },
-  { district: "San Isidro", province: "Lima", department: "Lima" },
-  { district: "Miraflores", province: "Lima", department: "Lima" },
-  { district: "Barranco", province: "Lima", department: "Lima" },
-  { district: "San Borja", province: "Lima", department: "Lima" },
-  { district: "Surco", province: "Lima", department: "Lima" },
-  { district: "Magdalena", province: "Lima", department: "Lima" },
-  { district: "Jesús María", province: "Lima", department: "Lima" },
-  { district: "Lince", province: "Lima", department: "Lima" },
-];
-
+import { locationOptions } from "@/types/locationOptions";
 interface ClientFormState {
   name: string;
   address: string;
