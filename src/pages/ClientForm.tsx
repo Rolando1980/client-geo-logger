@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -17,6 +18,7 @@ import { database } from "@/firebase/config";
 import { ref, get, set, update, push } from "firebase/database";
 import { DocumentType } from "@/types/client";
 import { locationOptions } from "@/types/locationOptions";
+
 interface ClientFormState {
   name: string;
   address: string;
@@ -90,37 +92,37 @@ const ClientForm = () => {
   }, [isEditing, id, user?.uid]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-  const { name, value } = e.target;
-  
-  if (name === "documentNumber") {
-    let isValid = true;
-    let newValue = value;
+    const { name, value } = e.target;
     
-    // Validaciones específicas según el tipo de documento
-    if (formData.documentType === "DNI") {
-      // Solo permitir dígitos y máximo 8 caracteres
-      newValue = value.replace(/\D/g, '').slice(0, 8);
-    } else if (formData.documentType === "RUC") {
-      // Solo permitir dígitos y máximo 11 caracteres
-      newValue = value.replace(/\D/g, '').slice(0, 11);
-      // Validar que comience con 10, 15, 17 o 20
-      if (newValue.length >= 2) {
-        const prefix = newValue.substring(0, 2);
-        isValid = ["10", "15", "17", "20"].includes(prefix);
+    if (name === "documentNumber") {
+      let isValid = true;
+      let newValue = value;
+      
+      // Validaciones específicas según el tipo de documento
+      if (formData.documentType === "DNI") {
+        // Solo permitir dígitos y máximo 8 caracteres
+        newValue = value.replace(/\D/g, '').slice(0, 8);
+      } else if (formData.documentType === "RUC") {
+        // Solo permitir dígitos y máximo 11 caracteres
+        newValue = value.replace(/\D/g, '').slice(0, 11);
+        // Validar que comience con 10, 15, 17 o 20
+        if (newValue.length >= 2) {
+          const prefix = newValue.substring(0, 2);
+          isValid = ["10", "15", "17", "20"].includes(prefix);
+        }
+      } else {
+        // Para CE y Otro: máximo 20 caracteres
+        newValue = value.slice(0, 20);
+      }
+      
+      // Solo actualizar si es un valor válido
+      if (isValid) {
+        setFormData((prev) => ({ ...prev, [name]: newValue }));
       }
     } else {
-      // Para CE y Otro: máximo 20 caracteres
-      newValue = value.slice(0, 20);
+      setFormData((prev) => ({ ...prev, [name]: value }));
     }
-    
-    // Solo actualizar si es un valor válido
-    if (isValid) {
-      setFormData((prev) => ({ ...prev, [name]: newValue }));
-    }
-  } else {
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  }
-};
+  };
 
   const handleLocationChange = (value: string) => {
     const [district, province, department] = value.split(", ");
@@ -219,6 +221,50 @@ const ClientForm = () => {
             <CardContent className="p-5">
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="form-group">
+                  <Label className="form-label">
+                    Tipo Documento <span className="text-red-500">*</span>
+                  </Label>
+                  <RadioGroup 
+                    value={formData.documentType} 
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, documentType: value as DocumentType }))}
+                    className="flex space-x-4 mt-1"
+                    required
+                  >
+                    <div className="flex items-center space-x-1">
+                      <RadioGroupItem value="DNI" id="dni" />
+                      <Label htmlFor="dni">DNI</Label>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <RadioGroupItem value="RUC" id="ruc" />
+                      <Label htmlFor="ruc">RUC</Label>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <RadioGroupItem value="CE" id="ce" />
+                      <Label htmlFor="ce">CE</Label>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <RadioGroupItem value="Otro" id="otro" />
+                      <Label htmlFor="otro">Otro</Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+
+                <div className="form-group">
+                  <Label htmlFor="documentNumber" className="form-label">
+                    Número Documento <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="documentNumber"
+                    name="documentNumber"
+                    className="form-input"
+                    placeholder="Número de documento"
+                    value={formData.documentNumber}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
                   <Label htmlFor="name" className="form-label">
                     Nombre <span className="text-red-500">*</span>
                   </Label>
@@ -285,50 +331,6 @@ const ClientForm = () => {
                     placeholder="correo@ejemplo.com"
                     value={formData.email}
                     onChange={handleChange}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <Label className="form-label">
-                    Tipo Documento <span className="text-red-500">*</span>
-                  </Label>
-                  <RadioGroup 
-                    value={formData.documentType} 
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, documentType: value as DocumentType }))}
-                    className="flex space-x-4 mt-1"
-                    required
-                  >
-                    <div className="flex items-center space-x-1">
-                      <RadioGroupItem value="DNI" id="dni" />
-                      <Label htmlFor="dni">DNI</Label>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <RadioGroupItem value="RUC" id="ruc" />
-                      <Label htmlFor="ruc">RUC</Label>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <RadioGroupItem value="CE" id="ce" />
-                      <Label htmlFor="ce">CE</Label>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <RadioGroupItem value="Otro" id="otro" />
-                      <Label htmlFor="otro">Otro</Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-
-                <div className="form-group">
-                  <Label htmlFor="documentNumber" className="form-label">
-                    Número Documento <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="documentNumber"
-                    name="documentNumber"
-                    className="form-input"
-                    placeholder="Número de documento"
-                    value={formData.documentNumber}
-                    onChange={handleChange}
-                    required
                   />
                 </div>
 
