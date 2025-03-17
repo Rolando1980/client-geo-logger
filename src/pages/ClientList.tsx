@@ -37,22 +37,33 @@ const ClientList = () => {
   useEffect(() => {
   if (!user?.uid) return;
 
-  const clientsRef = query(
+  const clientsQuery = query(
     ref(database, 'clients'),
     orderByChild('userId'),
     equalTo(user.uid)
   );
 
-  const unsubscribe = onValue(clientsRef, (snapshot) => {
-    // ... lógica existente
-  }, (error) => {
-    console.error("Error de permisos:", error);
-    toast({
-      title: "Error de acceso",
-      description: "No tienes permiso para ver estos clientes",
-      variant: "destructive",
-    });
+  const unsubscribe = onValue(clientsQuery, (snapshot) => {
+  const data = snapshot.val();
+  if (data) {
+    const clientsArray = Object.keys(data).map((key) => ({
+      id: key,
+      ...data[key],
+    }));
+    setClients(clientsArray);
+  } else {
+    setClients([]);
+  }
+  setLoading(false);
+}, (error) => {
+  console.error("Error de permisos:", error);
+  toast({
+    title: "Error de acceso",
+    description: "No tienes permiso para ver estos clientes",
+    variant: "destructive",
   });
+  setLoading(false);
+});
 
   return () => unsubscribe();
 }, [user?.uid]);
@@ -157,3 +168,4 @@ const ClientList = () => {
 };
 
 export default ClientList;
+
