@@ -2,18 +2,20 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Save, Clock, Calendar, MapPin, Search } from "lucide-react";
+import { ArrowLeft, Save, MapPin, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
-import GeoLocationButton from "@/components/GeoLocationButton";
 import PageTransition from "@/components/PageTransition";
 import Navbar from "@/components/Navbar";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { visitPurposeOptions } from "@/types/visitTypes";
+import { useGeolocation } from "@/hooks/useGeolocation";
 
 // Datos ficticios
 const mockClients = [
@@ -27,21 +29,23 @@ const VisitForm = () => {
   const location = useLocation();
   const { toast } = useToast();
   const selectedClient = location.state?.selectedClient;
+  const { latitude, longitude, getLocation } = useGeolocation();
 
   const [formData, setFormData] = useState({
     clientId: selectedClient?.id || "",
     clientName: selectedClient?.name || "",
-    date: format(new Date(), "yyyy-MM-dd"),
-    time: format(new Date(), "HH:mm"),
     purpose: "",
     notes: "",
-    latitude: "",
-    longitude: "",
   });
 
   const [showClientSearch, setShowClientSearch] = useState(!selectedClient);
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredClients, setFilteredClients] = useState(mockClients);
+
+  // Get location when component mounts
+  useEffect(() => {
+    getLocation();
+  }, []);
 
   useEffect(() => {
     const results = mockClients.filter((client) =>
@@ -55,6 +59,10 @@ const VisitForm = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
   const handleClientSelect = (client: any) => {
     setFormData((prev) => ({
       ...prev,
@@ -64,37 +72,39 @@ const VisitForm = () => {
     setShowClientSearch(false);
   };
 
-  const handleLocationCaptured = (latitude: number, longitude: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      latitude: latitude.toString(),
-      longitude: longitude.toString(),
-    }));
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.clientId || !formData.date || !formData.time) {
+    if (!formData.clientId || !formData.purpose) {
       toast({
         title: "Campos incompletos",
-        description: "Por favor selecciona un cliente y completa la fecha y hora",
+        description: "Por favor selecciona un cliente y el propósito de la visita",
         variant: "destructive",
       });
       return;
     }
 
-    if (!formData.latitude || !formData.longitude) {
+    if (!latitude || !longitude) {
       toast({
-        title: "Ubicación no capturada",
-        description: "Por favor captura tu ubicación actual",
+        title: "Error de ubicación",
+        description: "No se pudo obtener la ubicación. Por favor verifica los permisos.",
         variant: "destructive",
       });
       return;
     }
     
+    // Create the visit data with current date and time
+    const visitData = {
+      ...formData,
+      date: format(new Date(), "yyyy-MM-dd"),
+      time: format(new Date(), "HH:mm"),
+      latitude,
+      longitude,
+      createdAt: new Date().toISOString()
+    };
+    
     // Simular guardado - reemplazar con Firebase
-    console.log("Visita guardada:", formData);
+    console.log("Visita guardada:", visitData);
     
     toast({
       title: "Visita registrada",
@@ -122,6 +132,10 @@ const VisitForm = () => {
     navigate(-1);
   };
 
+  // Format current date and time for display
+  const currentDate = format(new Date(), "dd/MM/yyyy");
+  const currentTime = format(new Date(), "HH:mm");
+
   return (
     <PageTransition>
       <div className="min-h-screen pb-20 bg-gradient-to-b from-white to-brand-gray-light/30">
@@ -142,6 +156,22 @@ const VisitForm = () => {
 
           <Card className="bg-white/90 shadow-md mb-6">
             <CardContent className="p-5">
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="form-group">
+                  <Label className="form-label">Fecha</Label>
+                  <div className="p-3 bg-brand-gray-light/30 rounded-md">
+                    {currentDate}
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <Label className="form-label">Hora</Label>
+                  <div className="p-3 bg-brand-gray-light/30 rounded-md">
+                    {currentTime}
+                  </div>
+                </div>
+              </div>
+
               {showClientSearch ? (
                 <div className="mb-4">
                   <div className="flex justify-between items-center mb-2">
@@ -194,7 +224,7 @@ const VisitForm = () => {
                   </div>
                 </div>
               ) : (
-                <div className="form-group">
+                <div className="form-group mb-4">
                   <Label className="form-label">Cliente</Label>
                   <div className="flex items-center">
                     <div className="flex-1 p-3 bg-brand-gray-light/30 rounded-md">
@@ -214,53 +244,25 @@ const VisitForm = () => {
               )}
 
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="form-group">
-                    <Label htmlFor="date" className="form-label flex items-center">
-                      <Calendar size={14} className="mr-1" />
-                      Fecha <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      id="date"
-                      name="date"
-                      type="date"
-                      className="form-input"
-                      value={formData.date}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <Label htmlFor="time" className="form-label flex items-center">
-                      <Clock size={14} className="mr-1" />
-                      Hora <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      id="time"
-                      name="time"
-                      type="time"
-                      className="form-input"
-                      value={formData.time}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
-                </div>
-
                 <div className="form-group">
                   <Label htmlFor="purpose" className="form-label">
                     Propósito de la visita <span className="text-red-500">*</span>
                   </Label>
-                  <Input
-                    id="purpose"
-                    name="purpose"
-                    className="form-input"
-                    placeholder="Ej: Presentación de productos, soporte técnico"
+                  <Select 
+                    onValueChange={(value) => handleSelectChange("purpose", value)}
                     value={formData.purpose}
-                    onChange={handleChange}
-                    required
-                  />
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Selecciona un propósito" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {visitPurposeOptions.map((purpose) => (
+                        <SelectItem key={purpose} value={purpose}>
+                          {purpose}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="form-group">
@@ -280,19 +282,21 @@ const VisitForm = () => {
                 <div className="form-group">
                   <Label className="form-label flex items-center">
                     <MapPin size={14} className="mr-1" />
-                    Ubicación <span className="text-red-500">*</span>
+                    Ubicación
                   </Label>
                   
-                  <div className="mb-2">
-                    <GeoLocationButton onLocationCaptured={handleLocationCaptured} />
-                  </div>
-                  
-                  {formData.latitude && formData.longitude && (
+                  {latitude && longitude ? (
                     <div className="p-3 bg-brand-gray-light/30 rounded-md text-sm">
-                      <p className="font-medium">Ubicación capturada:</p>
+                      <p className="font-medium">Ubicación actual:</p>
                       <p className="text-brand-gray">
-                        Lat: {parseFloat(formData.latitude).toFixed(6)}, 
-                        Lng: {parseFloat(formData.longitude).toFixed(6)}
+                        Lat: {latitude.toFixed(6)}, 
+                        Lng: {longitude.toFixed(6)}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-brand-gray-light/30 rounded-md text-sm">
+                      <p className="text-brand-gray">
+                        Obteniendo ubicación...
                       </p>
                     </div>
                   )}
