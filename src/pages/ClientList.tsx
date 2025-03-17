@@ -35,36 +35,27 @@ const ClientList = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user?.uid) return;
+  if (!user?.uid) return;
 
-    const clientsRef = query(
-      ref(database, 'clients'),
-      orderByChild('userId'),
-      equalTo(user.uid)
-    );
+  const clientsRef = query(
+    ref(database, 'clients'),
+    orderByChild('userId'),
+    equalTo(user.uid)
+  );
 
-    const unsubscribe = onValue(clientsRef, (snapshot) => {
-      const clientsData: Client[] = [];
-      snapshot.forEach((childSnapshot) => {
-        clientsData.push({
-          id: childSnapshot.key || '',
-          ...childSnapshot.val()
-        });
-      });
-      setClients(clientsData);
-      setLoading(false);
-    }, (error) => {
-      console.error("Error fetching clients:", error);
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar los clientes",
-        variant: "destructive",
-      });
-      setLoading(false);
+  const unsubscribe = onValue(clientsRef, (snapshot) => {
+    // ... lógica existente
+  }, (error) => {
+    console.error("Error de permisos:", error);
+    toast({
+      title: "Error de acceso",
+      description: "No tienes permiso para ver estos clientes",
+      variant: "destructive",
     });
+  });
 
-    return () => unsubscribe();
-  }, [user?.uid]);
+  return () => unsubscribe();
+}, [user?.uid]);
 
   const filteredClients = clients.filter((client) =>
     client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
