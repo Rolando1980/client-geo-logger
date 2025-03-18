@@ -153,6 +153,7 @@ const VisitForm = () => {
 
   const handleShowClientSearch = () => {
     setShowClientSearch(true);
+    setSearchTerm(""); // Limpiar el término de búsqueda para que no se muestre la lista al inicio
     setFormData((prev) => ({
       ...prev,
       clientId: "",
@@ -187,7 +188,25 @@ const VisitForm = () => {
           </header>
 
           <Card className="bg-white/90 shadow-md mb-6">
-            <CardContent className="p-5">
+            <CardContent className="p-5"> 
+              {/* Sección para mostrar la fecha y la hora dentro del card */}
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="form-group">
+                  <Label className="form-label">Fecha</Label>
+                  <div className="p-3 bg-brand-gray-light/30 rounded-md">
+                    {currentDate}
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <Label className="form-label">Hora</Label>
+                  <div className="p-3 bg-brand-gray-light/30 rounded-md">
+                    {currentTime}
+                  </div>
+                </div>
+              </div>
+
+              {/* Aquí empieza el formulario */}
               <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Cliente */}
                 <div className="form-group">
@@ -208,6 +227,7 @@ const VisitForm = () => {
 
                   {showClientSearch ? (
                     <div>
+                      {/* Input de búsqueda */}
                       <div className="relative mb-3">
                         <Search
                           className="absolute left-3 top-1/2 transform -translate-y-1/2 text-brand-gray"
@@ -221,23 +241,26 @@ const VisitForm = () => {
                           onChange={(e) => setSearchTerm(e.target.value)}
                         />
                       </div>
-                      <div className="max-h-60 overflow-y-auto rounded-md border border-brand-gray-light">
-                        {filteredClients.length > 0 ? (
-                          filteredClients.map((client) => (
-                            <motion.div
-                              key={client.id}
-                              whileHover={{ backgroundColor: "rgba(241, 207, 0, 0.1)" }}
-                              className="p-3 border-b border-brand-gray-light cursor-pointer"
-                              onClick={() => handleClientSelect(client)}
-                            >
-                              <div className="font-medium">{client.name}</div>
-                              <div className="text-xs text-brand-gray">{client.address}</div>
-                            </motion.div>
-                          ))
-                        ) : (
-                          <div className="p-3 text-center text-brand-gray">No se encontraron clientes</div>
-                        )}
-                      </div>
+                      {/* Lista de clientes filtrados solo si se ha ingresado algo */}
+                      {searchTerm.trim() !== "" && (
+                        <div className="max-h-60 overflow-y-auto rounded-md border border-brand-gray-light">
+                          {filteredClients.length > 0 ? (
+                            filteredClients.map((client) => (
+                              <motion.div
+                                key={client.id}
+                                whileHover={{ backgroundColor: "rgba(241, 207, 0, 0.1)" }}
+                                className="p-3 border-b border-brand-gray-light cursor-pointer"
+                                onClick={() => handleClientSelect(client)}
+                              >
+                                <div className="font-medium">{client.name}</div>
+                                <div className="text-xs text-brand-gray">{client.address}</div>
+                              </motion.div>
+                            ))
+                          ) : (
+                            <div className="p-3 text-center text-brand-gray">No se encontraron clientes</div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="flex items-center">
@@ -259,17 +282,17 @@ const VisitForm = () => {
 
                 {/* Propósito de la visita */}
                 <div className="form-group">
-                  <Label htmlFor="purpose" className="form-label">
-                    Propósito de la visita <span className="text-red-500">*</span>
-                  </Label>
-                  <Select
-                    onValueChange={(value) => handleSelectChange("purpose", value)}
-                    value={formData.purpose}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Selecciona un propósito" />
-                    </SelectTrigger>
-                    <SelectContent>
+                <Label htmlFor="purpose" className="form-label">
+                  Propósito de la visita <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  onValueChange={(value) => handleSelectChange("purpose", value)}
+                  value={formData.purpose}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Selecciona un propósito" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[9999]">
                       {visitPurposeOptions.map((purpose) => (
                         <SelectItem key={purpose} value={purpose}>
                           {purpose}
@@ -277,7 +300,7 @@ const VisitForm = () => {
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
+              </div>
 
                 {/* Ubicación */}
                 <div className="form-group">
