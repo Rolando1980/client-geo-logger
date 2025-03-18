@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -11,10 +12,10 @@ import { useToast } from "@/components/ui/use-toast";
 import PageTransition from "@/components/PageTransition";
 import Navbar from "@/components/Navbar";
 import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { visitPurposeOptions } from "@/types/visitTypes";
 import { useGeolocation } from "@/hooks/useGeolocation";
+import LocationMap from "@/components/LocationMap";
 
 // Importar Firebase y el hook de autenticación
 import { database } from "@/firebase/config";
@@ -178,77 +179,85 @@ const VisitForm = () => {
               </Button>
               <h1 className="text-2xl font-bold">Registrar Visita</h1>
             </div>
+            <div className="flex justify-between items-center">
+              <div className="text-sm text-brand-gray">
+                <span className="font-medium">{currentDate}</span> • <span>{currentTime}</span>
+              </div>
+            </div>
           </header>
 
           <Card className="bg-white/90 shadow-md mb-6">
             <CardContent className="p-5">
-              <div className="grid grid-cols-2 gap-4 mb-4">
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Cliente */}
                 <div className="form-group">
-                  <Label className="form-label">Fecha</Label>
-                  <div className="p-3 bg-brand-gray-light/30 rounded-md">{currentDate}</div>
-                </div>
-                <div className="form-group">
-                  <Label className="form-label">Hora</Label>
-                  <div className="p-3 bg-brand-gray-light/30 rounded-md">{currentTime}</div>
-                </div>
-              </div>
-
-              {showClientSearch ? (
-                <div className="mb-4">
                   <div className="flex justify-between items-center mb-2">
                     <Label className="form-label">
                       Seleccionar Cliente <span className="text-red-500">*</span>
                     </Label>
-                    <Button type="button" variant="ghost" size="sm" onClick={handleAddNewClient} className="text-xs">
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={handleAddNewClient} 
+                      className="text-xs"
+                    >
                       Nuevo cliente
                     </Button>
                   </div>
-                  <div className="relative mb-3">
-                    <Search
-                      className="absolute left-3 top-1/2 transform -translate-y-1/2 text-brand-gray"
-                      size={16}
-                    />
-                    <Input
-                      type="text"
-                      placeholder="Buscar cliente..."
-                      className="pl-10 form-input"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </div>
-                  <div className="max-h-60 overflow-y-auto rounded-md border border-brand-gray-light">
-                    {filteredClients.length > 0 ? (
-                      filteredClients.map((client) => (
-                        <motion.div
-                          key={client.id}
-                          whileHover={{ backgroundColor: "rgba(241, 207, 0, 0.1)" }}
-                          className="p-3 border-b border-brand-gray-light cursor-pointer"
-                          onClick={() => handleClientSelect(client)}
-                        >
-                          <div className="font-medium">{client.name}</div>
-                          <div className="text-xs text-brand-gray">{client.address}</div>
-                        </motion.div>
-                      ))
-                    ) : (
-                      <div className="p-3 text-center text-brand-gray">No se encontraron clientes</div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="form-group mb-4">
-                  <Label className="form-label">Cliente</Label>
-                  <div className="flex items-center">
-                    <div className="flex-1 p-3 bg-brand-gray-light/30 rounded-md">
-                      <div className="font-medium">{formData.clientName}</div>
-                    </div>
-                    <Button type="button" variant="ghost" size="sm" onClick={handleShowClientSearch} className="ml-2">
-                      Cambiar
-                    </Button>
-                  </div>
-                </div>
-              )}
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+                  {showClientSearch ? (
+                    <div>
+                      <div className="relative mb-3">
+                        <Search
+                          className="absolute left-3 top-1/2 transform -translate-y-1/2 text-brand-gray"
+                          size={16}
+                        />
+                        <Input
+                          type="text"
+                          placeholder="Buscar cliente..."
+                          className="pl-10 form-input"
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                      </div>
+                      <div className="max-h-60 overflow-y-auto rounded-md border border-brand-gray-light">
+                        {filteredClients.length > 0 ? (
+                          filteredClients.map((client) => (
+                            <motion.div
+                              key={client.id}
+                              whileHover={{ backgroundColor: "rgba(241, 207, 0, 0.1)" }}
+                              className="p-3 border-b border-brand-gray-light cursor-pointer"
+                              onClick={() => handleClientSelect(client)}
+                            >
+                              <div className="font-medium">{client.name}</div>
+                              <div className="text-xs text-brand-gray">{client.address}</div>
+                            </motion.div>
+                          ))
+                        ) : (
+                          <div className="p-3 text-center text-brand-gray">No se encontraron clientes</div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center">
+                      <div className="flex-1 p-3 bg-brand-gray-light/30 rounded-md">
+                        <div className="font-medium">{formData.clientName}</div>
+                      </div>
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={handleShowClientSearch} 
+                        className="ml-2"
+                      >
+                        Cambiar
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Propósito de la visita */}
                 <div className="form-group">
                   <Label htmlFor="purpose" className="form-label">
                     Propósito de la visita <span className="text-red-500">*</span>
@@ -270,6 +279,16 @@ const VisitForm = () => {
                   </Select>
                 </div>
 
+                {/* Ubicación */}
+                <div className="form-group">
+                  <Label className="form-label flex items-center">
+                    <MapPin size={14} className="mr-1" />
+                    Ubicación
+                  </Label>
+                  <LocationMap latitude={latitude} longitude={longitude} />
+                </div>
+
+                {/* Notas */}
                 <div className="form-group">
                   <Label htmlFor="notes" className="form-label">
                     Notas
@@ -282,25 +301,6 @@ const VisitForm = () => {
                     value={formData.notes}
                     onChange={handleChange}
                   />
-                </div>
-
-                <div className="form-group">
-                  <Label className="form-label flex items-center">
-                    <MapPin size={14} className="mr-1" />
-                    Ubicación
-                  </Label>
-                  {latitude && longitude ? (
-                    <div className="p-3 bg-brand-gray-light/30 rounded-md text-sm">
-                      <p className="font-medium">Ubicación actual:</p>
-                      <p className="text-brand-gray">
-                        Lat: {latitude.toFixed(6)}, Lng: {longitude.toFixed(6)}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="p-3 bg-brand-gray-light/30 rounded-md text-sm">
-                      <p className="text-brand-gray">Obteniendo ubicación...</p>
-                    </div>
-                  )}
                 </div>
 
                 <div className="flex justify-end pt-4">
