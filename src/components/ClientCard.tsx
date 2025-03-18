@@ -1,4 +1,3 @@
-
 import { motion } from "framer-motion";
 import { MapPin, Calendar, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,6 +6,9 @@ interface Client {
   id: string;
   name: string;
   address: string;
+  district: string;
+  province: string;
+  department: string;
   lastVisit?: string;
 }
 
@@ -35,6 +37,9 @@ const ClientCard = ({ client, onClick }: ClientCardProps) => {
               <div className="flex items-center text-brand-gray text-sm mt-1">
                 <MapPin size={14} className="mr-1" />
                 <span className="truncate max-w-[200px]">{client.address}</span>
+                <span className="ml-2">
+                  {client.district} / {client.province} / {client.department}
+                </span>
               </div>
               {client.lastVisit && (
                 <div className="flex items-center text-brand-gray text-sm mt-1">

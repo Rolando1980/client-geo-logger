@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, PlusCircle } from "lucide-react";
@@ -35,47 +35,56 @@ const ClientList = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-  if (!user?.uid) return;
+    if (!user?.uid) return;
 
-  const clientsQuery = query(
-    ref(database, 'clients'),
-    orderByChild('userId'),
-    equalTo(user.uid)
-  );
+    const clientsQuery = query(
+      ref(database, "clients"),
+      orderByChild("userId"),
+      equalTo(user.uid)
+    );
 
-  const unsubscribe = onValue(clientsQuery, (snapshot) => {
-  const data = snapshot.val();
-  if (data) {
-    const clientsArray = Object.keys(data).map((key) => ({
-      id: key,
-      ...data[key],
-    }));
-    setClients(clientsArray);
-  } else {
-    setClients([]);
-  }
-  setLoading(false);
-}, (error) => {
-  console.error("Error de permisos:", error);
-  toast({
-    title: "Error de acceso",
-    description: "No tienes permiso para ver estos clientes",
-    variant: "destructive",
-  });
-  setLoading(false);
-});
+    const unsubscribe = onValue(clientsQuery, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const clientsArray = Object.keys(data)
+          .map((key) => ({
+            id: key,
+            ...data[key],
+          }))
+          // Ordena por fecha de creación descendente
+          .sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+        setClients(clientsArray);
+      } else {
+        setClients([]);
+      }
+      setLoading(false);
+    }, (error) => {
+      console.error("Error de permisos:", error);
+      toast({
+        title: "Error de acceso",
+        description: "No tienes permiso para ver estos clientes",
+        variant: "destructive",
+      });
+      setLoading(false);
+    });
 
-  return () => unsubscribe();
-}, [user?.uid]);
+    return () => unsubscribe();
+  }, [user?.uid, toast]);
 
-  const filteredClients = clients.filter((client) =>
-    client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.documentNumber.includes(searchTerm)
-  );
+  // Filtrado optimizado con useMemo
+  const filteredClients = useMemo(() => {
+    return clients.filter((client) =>
+      client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      client.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      client.documentNumber.includes(searchTerm)
+    );
+  }, [searchTerm, clients]);
 
   const handleClientClick = (client: Client) => {
-    navigate("/visit", { state: { selectedClient: client } });
+    navigate(`/client/edit/${client.id}`, { state: { selectedClient: client } });
   };
 
   const handleAddNewClient = () => {
@@ -104,9 +113,9 @@ const ClientList = () => {
             </div>
             
             <div className="relative mb-4">
-              <Search 
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-brand-gray" 
-                size={18} 
+              <Search
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-brand-gray"
+                size={18}
               />
               <Input
                 type="text"
@@ -114,6 +123,7 @@ const ClientList = () => {
                 className="pl-10 form-input"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                aria-label="Buscar cliente"
               />
             </div>
           </header>
@@ -134,8 +144,8 @@ const ClientList = () => {
                       exit={{ opacity: 0, height: 0 }}
                       transition={{ delay: index * 0.05, duration: 0.3 }}
                     >
-                      <ClientCard 
-                        client={client} 
+                      <ClientCard
+                        client={client}
                         onClick={() => handleClientClick(client)}
                       />
                     </motion.div>
@@ -168,4 +178,3 @@ const ClientList = () => {
 };
 
 export default ClientList;
-

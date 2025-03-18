@@ -180,11 +180,6 @@ const VisitForm = () => {
               </Button>
               <h1 className="text-2xl font-bold">Registrar Visita</h1>
             </div>
-            <div className="flex justify-between items-center">
-              <div className="text-sm text-brand-gray">
-                <span className="font-medium">{currentDate}</span> • <span>{currentTime}</span>
-              </div>
-            </div>
           </header>
 
           <Card className="bg-white/90 shadow-md mb-6">
