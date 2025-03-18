@@ -1,8 +1,7 @@
 
-import React, { useEffect, useRef } from "react";
-import { MapPin } from "lucide-react";
-import L from 'leaflet';
+import React from "react";
 import { MapContainer, TileLayer, Marker, ZoomControl } from 'react-leaflet';
+import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 // Fix for the default icon issue in Leaflet
