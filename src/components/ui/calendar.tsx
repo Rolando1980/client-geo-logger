@@ -15,20 +15,6 @@ function Calendar({
   showOutsideDays = true,
   ...props
 }: CalendarProps) {
-  const IconLeft = React.forwardRef<HTMLButtonElement>((props, ref) => (
-    <button ref={ref} {...props}>
-      <ChevronLeft className="h-4 w-4" />
-    </button>
-  ))
-  IconLeft.displayName = "IconLeft"
-
-  const IconRight = React.forwardRef<HTMLButtonElement>((props, ref) => (
-    <button ref={ref} {...props}>
-      <ChevronRight className="h-4 w-4" />
-    </button>
-  ))
-  IconRight.displayName = "IconRight"
-
   return (
     <DayPicker
       locale={es}
@@ -69,8 +55,8 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        IconLeft,
-        IconRight,
+        IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" {...props} />,
+        IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" {...props} />,
       }}
       {...props}
     />
