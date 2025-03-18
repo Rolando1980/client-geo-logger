@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -16,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { visitPurposeOptions } from "@/types/visitTypes";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import LocationMap from "@/components/LocationMap";
+import { push } from "firebase/database";
 
 // Importar Firebase y el hook de autenticación
 import { database } from "@/firebase/config";
@@ -34,6 +34,9 @@ const VisitForm = () => {
   const [clients, setClients] = useState<any[]>([]);
   const [filteredClients, setFilteredClients] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Estado para controlar la carga
+  const [loading, setLoading] = useState(false);
 
   // Estado para el formulario
   const [formData, setFormData] = useState({
@@ -104,8 +107,9 @@ const VisitForm = () => {
     setShowClientSearch(false);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
 
     if (!formData.clientId || !formData.purpose) {
       toast({
@@ -113,6 +117,7 @@ const VisitForm = () => {
         description: "Por favor selecciona un cliente y el propósito de la visita",
         variant: "destructive",
       });
+      setLoading(false);
       return;
     }
 
@@ -122,6 +127,7 @@ const VisitForm = () => {
         description: "No se pudo obtener la ubicación. Por favor verifica los permisos.",
         variant: "destructive",
       });
+      setLoading(false);
       return;
     }
 
@@ -133,18 +139,31 @@ const VisitForm = () => {
       latitude,
       longitude,
       createdAt: new Date().toISOString(),
+      userId: user?.uid, // Se requiere para cumplir las reglas de Firebase
+      status: "pending"  // Agregamos el campo status con valor "pending"
     };
 
-    // Simular guardado - reemplazar con la lógica de guardado en Firebase
-    console.log("Visita guardada:", visitData);
+    try {
+      // Guardar la visita en Firebase
+      await push(ref(database, "visits"), visitData);
 
-    toast({
-      title: "Visita registrada",
-      description: "La visita ha sido registrada exitosamente",
-    });
+      toast({
+        title: "Visita registrada",
+        description: "La visita ha sido registrada exitosamente",
+      });
 
-    // Redirigir al dashboard después de guardar
-    navigate("/dashboard");
+      // Redirigir al dashboard después de guardar
+      navigate("/dashboard");
+    } catch (error) {
+      console.error("Error al guardar visita:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo guardar la visita",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAddNewClient = () => {
@@ -183,7 +202,7 @@ const VisitForm = () => {
           </header>
 
           <Card className="bg-white/90 shadow-md mb-6">
-            <CardContent className="p-5"> 
+            <CardContent className="p-5">
               {/* Sección para mostrar la fecha y la hora dentro del card */}
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div className="form-group">
@@ -209,11 +228,11 @@ const VisitForm = () => {
                     <Label className="form-label">
                       Seleccionar Cliente <span className="text-red-500">*</span>
                     </Label>
-                    <Button 
-                      type="button" 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={handleAddNewClient} 
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleAddNewClient}
                       className="text-xs"
                     >
                       Nuevo cliente
@@ -262,11 +281,11 @@ const VisitForm = () => {
                       <div className="flex-1 p-3 bg-brand-gray-light/30 rounded-md">
                         <div className="font-medium">{formData.clientName}</div>
                       </div>
-                      <Button 
-                        type="button" 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={handleShowClientSearch} 
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleShowClientSearch}
                         className="ml-2"
                       >
                         Cambiar
@@ -277,17 +296,17 @@ const VisitForm = () => {
 
                 {/* Propósito de la visita */}
                 <div className="form-group">
-                <Label htmlFor="purpose" className="form-label">
-                  Propósito de la visita <span className="text-red-500">*</span>
-                </Label>
-                <Select
-                  onValueChange={(value) => handleSelectChange("purpose", value)}
-                  value={formData.purpose}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Selecciona un propósito" />
-                  </SelectTrigger>
-                  <SelectContent className="z-[9999]">
+                  <Label htmlFor="purpose" className="form-label">
+                    Propósito de la visita <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    onValueChange={(value) => handleSelectChange("purpose", value)}
+                    value={formData.purpose}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Selecciona un propósito" />
+                    </SelectTrigger>
+                    <SelectContent className="z-[9999]">
                       {visitPurposeOptions.map((purpose) => (
                         <SelectItem key={purpose} value={purpose}>
                           {purpose}
@@ -295,7 +314,7 @@ const VisitForm = () => {
                       ))}
                     </SelectContent>
                   </Select>
-              </div>
+                </div>
 
                 {/* Ubicación */}
                 <div className="form-group">
@@ -329,6 +348,7 @@ const VisitForm = () => {
                     <Button
                       type="submit"
                       className="bg-brand-yellow text-black hover:brightness-110 flex items-center gap-2"
+                      disabled={loading}
                     >
                       <Save size={16} />
                       <span>Guardar</span>
