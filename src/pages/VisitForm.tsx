@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -17,20 +16,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { visitPurposeOptions } from "@/types/visitTypes";
 import { useGeolocation } from "@/hooks/useGeolocation";
 
-// Datos ficticios
-const mockClients = [
-  { id: "1", name: "Empresa ABC", address: "Calle Principal 123" },
-  { id: "2", name: "Distribuidora XYZ", address: "Av. Central 456" },
-  { id: "3", name: "Consultora 123", address: "Plaza Mayor 789" },
-];
+// Importar Firebase y el hook de autenticación
+import { database } from "@/firebase/config";
+import { ref, query, orderByChild, equalTo, onValue } from "firebase/database";
+import { useAuth } from "@/hooks/useAuth";
 
 const VisitForm = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+  const { user } = useAuth();
   const selectedClient = location.state?.selectedClient;
   const { latitude, longitude, getLocation } = useGeolocation();
 
+  // Estado para clientes traídos desde Firebase
+  const [clients, setClients] = useState<any[]>([]);
+  const [filteredClients, setFilteredClients] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Estado para el formulario
   const [formData, setFormData] = useState({
     clientId: selectedClient?.id || "",
     clientName: selectedClient?.name || "",
@@ -38,21 +42,48 @@ const VisitForm = () => {
     notes: "",
   });
 
+  // Mostrar búsqueda de clientes solo si no se seleccionó uno previamente
   const [showClientSearch, setShowClientSearch] = useState(!selectedClient);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filteredClients, setFilteredClients] = useState(mockClients);
 
-  // Get location when component mounts
+  // Obtener la ubicación cuando se monta el componente
   useEffect(() => {
     getLocation();
-  }, []);
+  }, [getLocation]);
 
+  // Efecto para obtener la lista de clientes del usuario desde Firebase
   useEffect(() => {
-    const results = mockClients.filter((client) =>
+    if (!user?.uid) return;
+    const clientsQuery = query(
+      ref(database, "clients"),
+      orderByChild("userId"),
+      equalTo(user.uid)
+    );
+    const unsubscribe = onValue(clientsQuery, (snapshot) => {
+      const data = snapshot.val() || {};
+      const clientsArray = Object.keys(data).map((key) => ({
+        id: key,
+        ...data[key],
+      }));
+      setClients(clientsArray);
+      setFilteredClients(clientsArray);
+    }, (error) => {
+      console.error("Error al obtener clientes:", error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los clientes",
+        variant: "destructive",
+      });
+    });
+    return () => unsubscribe();
+  }, [user, toast]);
+
+  // Efecto para filtrar clientes en base al término de búsqueda
+  useEffect(() => {
+    const results = clients.filter((client) =>
       client.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredClients(results);
-  }, [searchTerm]);
+  }, [searchTerm, clients]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -74,7 +105,7 @@ const VisitForm = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.clientId || !formData.purpose) {
       toast({
         title: "Campos incompletos",
@@ -92,25 +123,25 @@ const VisitForm = () => {
       });
       return;
     }
-    
-    // Create the visit data with current date and time
+
+    // Crear los datos de la visita con la fecha y hora actuales
     const visitData = {
       ...formData,
       date: format(new Date(), "yyyy-MM-dd"),
       time: format(new Date(), "HH:mm"),
       latitude,
       longitude,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     };
-    
-    // Simular guardado - reemplazar con Firebase
+
+    // Simular guardado - reemplazar con la lógica de guardado en Firebase
     console.log("Visita guardada:", visitData);
-    
+
     toast({
       title: "Visita registrada",
       description: "La visita ha sido registrada exitosamente",
     });
-    
+
     // Redirigir al dashboard después de guardar
     navigate("/dashboard");
   };
@@ -132,7 +163,7 @@ const VisitForm = () => {
     navigate(-1);
   };
 
-  // Format current date and time for display
+  // Formatear la fecha y hora actuales para mostrar
   const currentDate = format(new Date(), "dd/MM/yyyy");
   const currentTime = format(new Date(), "HH:mm");
 
@@ -142,12 +173,7 @@ const VisitForm = () => {
         <div className="page-container">
           <header className="pt-6 pb-4">
             <div className="flex items-center mb-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleCancel}
-                className="mr-2"
-              >
+              <Button variant="ghost" size="icon" onClick={handleCancel} className="mr-2">
                 <ArrowLeft size={20} />
               </Button>
               <h1 className="text-2xl font-bold">Registrar Visita</h1>
@@ -159,16 +185,11 @@ const VisitForm = () => {
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div className="form-group">
                   <Label className="form-label">Fecha</Label>
-                  <div className="p-3 bg-brand-gray-light/30 rounded-md">
-                    {currentDate}
-                  </div>
+                  <div className="p-3 bg-brand-gray-light/30 rounded-md">{currentDate}</div>
                 </div>
-
                 <div className="form-group">
                   <Label className="form-label">Hora</Label>
-                  <div className="p-3 bg-brand-gray-light/30 rounded-md">
-                    {currentTime}
-                  </div>
+                  <div className="p-3 bg-brand-gray-light/30 rounded-md">{currentTime}</div>
                 </div>
               </div>
 
@@ -178,21 +199,14 @@ const VisitForm = () => {
                     <Label className="form-label">
                       Seleccionar Cliente <span className="text-red-500">*</span>
                     </Label>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleAddNewClient}
-                      className="text-xs"
-                    >
+                    <Button type="button" variant="ghost" size="sm" onClick={handleAddNewClient} className="text-xs">
                       Nuevo cliente
                     </Button>
                   </div>
-                  
                   <div className="relative mb-3">
-                    <Search 
-                      className="absolute left-3 top-1/2 transform -translate-y-1/2 text-brand-gray" 
-                      size={16} 
+                    <Search
+                      className="absolute left-3 top-1/2 transform -translate-y-1/2 text-brand-gray"
+                      size={16}
                     />
                     <Input
                       type="text"
@@ -202,7 +216,6 @@ const VisitForm = () => {
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
                   </div>
-                  
                   <div className="max-h-60 overflow-y-auto rounded-md border border-brand-gray-light">
                     {filteredClients.length > 0 ? (
                       filteredClients.map((client) => (
@@ -217,9 +230,7 @@ const VisitForm = () => {
                         </motion.div>
                       ))
                     ) : (
-                      <div className="p-3 text-center text-brand-gray">
-                        No se encontraron clientes
-                      </div>
+                      <div className="p-3 text-center text-brand-gray">No se encontraron clientes</div>
                     )}
                   </div>
                 </div>
@@ -230,13 +241,7 @@ const VisitForm = () => {
                     <div className="flex-1 p-3 bg-brand-gray-light/30 rounded-md">
                       <div className="font-medium">{formData.clientName}</div>
                     </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleShowClientSearch}
-                      className="ml-2"
-                    >
+                    <Button type="button" variant="ghost" size="sm" onClick={handleShowClientSearch} className="ml-2">
                       Cambiar
                     </Button>
                   </div>
@@ -248,7 +253,7 @@ const VisitForm = () => {
                   <Label htmlFor="purpose" className="form-label">
                     Propósito de la visita <span className="text-red-500">*</span>
                   </Label>
-                  <Select 
+                  <Select
                     onValueChange={(value) => handleSelectChange("purpose", value)}
                     value={formData.purpose}
                   >
@@ -284,31 +289,22 @@ const VisitForm = () => {
                     <MapPin size={14} className="mr-1" />
                     Ubicación
                   </Label>
-                  
                   {latitude && longitude ? (
                     <div className="p-3 bg-brand-gray-light/30 rounded-md text-sm">
                       <p className="font-medium">Ubicación actual:</p>
                       <p className="text-brand-gray">
-                        Lat: {latitude.toFixed(6)}, 
-                        Lng: {longitude.toFixed(6)}
+                        Lat: {latitude.toFixed(6)}, Lng: {longitude.toFixed(6)}
                       </p>
                     </div>
                   ) : (
                     <div className="p-3 bg-brand-gray-light/30 rounded-md text-sm">
-                      <p className="text-brand-gray">
-                        Obteniendo ubicación...
-                      </p>
+                      <p className="text-brand-gray">Obteniendo ubicación...</p>
                     </div>
                   )}
                 </div>
 
                 <div className="flex justify-end pt-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleCancel}
-                    className="mr-2"
-                  >
+                  <Button type="button" variant="outline" onClick={handleCancel} className="mr-2">
                     Cancelar
                   </Button>
                   <motion.div whileTap={{ scale: 0.95 }}>
@@ -325,7 +321,6 @@ const VisitForm = () => {
             </CardContent>
           </Card>
         </div>
-        
         <Navbar />
       </div>
     </PageTransition>
