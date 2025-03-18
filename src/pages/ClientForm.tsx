@@ -120,7 +120,14 @@ const ClientForm = () => {
         setFormData((prev) => ({ ...prev, [name]: newValue }));
       }
     } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
+      setFormData((prev) => ({
+        ...prev,
+        [name]: name === "name" || name === "contactName"
+          ? value.toUpperCase()
+          : name === "email"
+          ? value.toLowerCase()
+          : value,
+      }));
     }
   };
 
