@@ -134,18 +134,29 @@ const Dashboard = () => {
     // Contar visitas por día
     visits.forEach(visit => {
       if (visit.createdAt) {
+        // 🔍 Aquí registramos el valor exacto de createdAt
+        console.log("visit.createdAt (string ISO):", visit.createdAt);
+
         const visitDate = parseISO(visit.createdAt);
+        console.log("visitDate (Date object):", visitDate);
+
+        // Verificamos si la fecha está dentro del mes actual
         if (isWithinInterval(visitDate, { start: firstDay, end: lastDay })) {
           const dateStr = format(visitDate, "yyyy-MM-dd");
-          const dayIndex = dailyVisits.findIndex(d => d.date === dateStr);
+          const dayIndex = dailyVisits.findIndex((d) => d.date === dateStr);
           if (dayIndex !== -1) {
             dailyVisits[dayIndex].count++;
           }
-        }
+        } else {
+        console.log("Esta visita no pertenece al mes actual:", visitDate);
       }
-    });
-    
-    setVisitsByDay(dailyVisits);
+    } else {
+      console.log("Esta visita no tiene createdAt:", visit);
+    }
+  });   
+
+  console.log("Resultado final dailyVisits:", dailyVisits); // log para depuración
+  setVisitsByDay(dailyVisits);
   };
 
   const navigateToNewVisit = () => {
@@ -278,7 +289,7 @@ const Dashboard = () => {
                           <TrendingUp className="text-brand-yellow" size={20} />
                         </div>
                       </div>
-                      <div className="mt-auto h-[60px]">
+                      <div className="mt-auto h-[80px]">
                         <VisitsChart visitsByDay={visitsByDay} />
                       </div>
                     </div>
