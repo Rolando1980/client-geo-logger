@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { PlusCircle, Users, ClipboardCheck, Calendar } from "lucide-react";
+import { PlusCircle, Users, ClipboardCheck, Calendar, TrendingUp } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,8 @@ import { useAuth } from "@/hooks/useAuth";
 import PageTransition from "@/components/PageTransition";
 import { database } from "@/firebase/config";
 import { ref, get, query, orderByChild, equalTo } from "firebase/database";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isWithinInterval, parseISO } from "date-fns";
+import VisitsChart from "@/components/VisitsChart";
 
 type Visit = {
   id?: string;
@@ -19,6 +21,11 @@ type Visit = {
   date?: string;
   type?: string;
 };
+
+type VisitsByDayData = {
+  date: string;
+  count: number;
+}[];
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -31,79 +38,115 @@ const Dashboard = () => {
     visitsThisMonth: 0,
   });
   const [recentActivity, setRecentActivity] = useState<Visit[]>([]);
+  const [visitsByDay, setVisitsByDay] = useState<VisitsByDayData>([]);
 
   useEffect(() => {
-  if (!user) {
-    navigate("/");
-    return;
-  }
-  
-  // Consulta para clientes filtrada por userId
-  const clientsQuery = query(
-    ref(database, "clients"),
-    orderByChild("userId"),
-    equalTo(user.uid)
-  );
-  
-  get(clientsQuery)
-    .then((snapshot) => {
-      const clientsData = snapshot.val();
-      const totalClients = clientsData ? Object.keys(clientsData).length : 0;
-      setStats((prev) => ({ ...prev, totalClients }));
-    })
-    .catch((error) => {
-      console.error("Error fetching clients:", error);
+    if (!user) {
+      navigate("/");
+      return;
+    }
+    
+    // Consulta para clientes filtrada por userId
+    const clientsQuery = query(
+      ref(database, "clients"),
+      orderByChild("userId"),
+      equalTo(user.uid)
+    );
+    
+    get(clientsQuery)
+      .then((snapshot) => {
+        const clientsData = snapshot.val();
+        const totalClients = clientsData ? Object.keys(clientsData).length : 0;
+        setStats((prev) => ({ ...prev, totalClients }));
+      })
+      .catch((error) => {
+        console.error("Error fetching clients:", error);
+      });
+
+    // Consulta para visitas filtrada por userId
+    const visitsQuery = query(
+      ref(database, "visits"),
+      orderByChild("userId"),
+      equalTo(user.uid)
+    );
+
+    get(visitsQuery)
+      .then((snapshot) => {
+        const visitsData = snapshot.val();
+        console.log("Datos de visitas filtrados:", snapshot.val());
+        const allVisits = visitsData ? (Object.values(visitsData) as Visit[]) : [];
+        console.log("Visitas convertidas en array (get):", allVisits);
+        const totalVisits = allVisits.length;
+        console.log("Total de visitas (get):", totalVisits);
+        const pendingVisits = allVisits.filter((visit) => visit.status === "pending").length;
+
+        const todayStr = format(new Date(), "yyyy-MM-dd");
+        const currentMonthStr = format(new Date(), "yyyy-MM");
+
+        const visitsToday = allVisits.filter(
+          (visit) => visit.createdAt && visit.createdAt.startsWith(todayStr)
+        ).length;
+
+        const visitsThisMonth = allVisits.filter(
+          (visit) => visit.createdAt && visit.createdAt.startsWith(currentMonthStr)
+        ).length;
+
+        setStats((prev) => ({
+          ...prev,
+          totalVisits,
+          pendingVisits,
+          visitsToday,
+          visitsThisMonth,
+        }));
+
+        // Procesar datos para el gráfico de visitas por día
+        processVisitsByDay(allVisits);
+
+        const sortedActivities = allVisits
+          .sort((a, b) => {
+            const timeA = new Date(a.createdAt || 0).getTime();
+            const timeB = new Date(b.createdAt || 0).getTime();
+            return timeB - timeA;
+          })
+          .slice(0, 3);
+        setRecentActivity(sortedActivities);
+      })
+      .catch((error) => {
+        console.error("Error fetching visits:", error);
+      });
+  }, [user, navigate]);
+
+  const processVisitsByDay = (visits: Visit[]) => {
+    // Crear array con todos los días del mes actual
+    const today = new Date();
+    const firstDay = startOfMonth(today);
+    const lastDay = endOfMonth(today);
+    
+    // Generar array con todos los días del mes
+    const daysInMonth = eachDayOfInterval({ start: firstDay, end: lastDay });
+    
+    // Inicializar conteo por día
+    const dailyVisits = daysInMonth.map(day => ({
+      date: format(day, "yyyy-MM-dd"),
+      count: 0
+    }));
+    
+    // Contar visitas por día
+    visits.forEach(visit => {
+      if (visit.createdAt) {
+        const visitDate = parseISO(visit.createdAt);
+        if (isWithinInterval(visitDate, { start: firstDay, end: lastDay })) {
+          const dateStr = format(visitDate, "yyyy-MM-dd");
+          const dayIndex = dailyVisits.findIndex(d => d.date === dateStr);
+          if (dayIndex !== -1) {
+            dailyVisits[dayIndex].count++;
+          }
+        }
+      }
     });
-
-  // Consulta para visitas filtrada por userId
-  const visitsQuery = query(
-    ref(database, "visits"),
-    orderByChild("userId"),
-    equalTo(user.uid)
-  );
-
-  get(visitsQuery)
-    .then((snapshot) => {
-      const visitsData = snapshot.val();
-      console.log("Datos de visitas filtrados:", snapshot.val());
-      const allVisits = visitsData ? (Object.values(visitsData) as Visit[]) : [];
-      console.log("Visitas convertidas en array (get):", allVisits);
-      const totalVisits = allVisits.length;
-      console.log("Total de visitas (get):", totalVisits);
-      const pendingVisits = allVisits.filter((visit) => visit.status === "pending").length;
-
-      const todayStr = format(new Date(), "yyyy-MM-dd");
-      const currentMonthStr = format(new Date(), "yyyy-MM");
-
-      const visitsToday = allVisits.filter(
-        (visit) => visit.createdAt && visit.createdAt.startsWith(todayStr)
-      ).length;
-
-      const visitsThisMonth = allVisits.filter(
-        (visit) => visit.createdAt && visit.createdAt.startsWith(currentMonthStr)
-      ).length;
-
-      setStats((prev) => ({
-        ...prev,
-        totalVisits,
-        pendingVisits,
-        visitsToday,
-        visitsThisMonth,
-      }));
-
-      const sortedActivities = allVisits
-        .sort((a, b) => {
-          const timeA = new Date(a.createdAt || 0).getTime();
-          const timeB = new Date(b.createdAt || 0).getTime();
-          return timeB - timeA;
-        })
-        .slice(0, 3);
-      setRecentActivity(sortedActivities);
-    })
-    .catch((error) => {
-      console.error("Error fetching visits:", error);
-    });
-}, [user, navigate]);
+    
+    setVisitsByDay(dailyVisits);
+  };
 
   const navigateToNewVisit = () => {
     navigate("/visit");
@@ -217,7 +260,7 @@ const Dashboard = () => {
                 </Card>
               </motion.div>
 
-              {/* Tarjeta Visitas Este Mes */}
+              {/* Tarjeta Visitas Este Mes (Modificada) */}
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -225,13 +268,18 @@ const Dashboard = () => {
               >
                 <Card className="bg-white/90 shadow-md">
                   <CardContent className="p-4">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="text-brand-gray text-sm">Visitas Este Mes</p>
-                        <h3 className="text-2xl font-semibold">{stats.visitsThisMonth}</h3>
+                    <div className="flex flex-col">
+                      <div className="flex justify-between items-center mb-3">
+                        <div>
+                          <p className="text-brand-gray text-sm">Visitas Este Mes</p>
+                          <h3 className="text-2xl font-semibold">{stats.visitsThisMonth}</h3>
+                        </div>
+                        <div className="bg-brand-yellow/20 p-2 rounded-full">
+                          <TrendingUp className="text-brand-yellow" size={20} />
+                        </div>
                       </div>
-                      <div className="bg-brand-yellow/20 p-2 rounded-full">
-                        <Calendar className="text-brand-yellow" size={20} />
+                      <div className="mt-auto h-[60px]">
+                        <VisitsChart visitsByDay={visitsByDay} />
                       </div>
                     </div>
                   </CardContent>
