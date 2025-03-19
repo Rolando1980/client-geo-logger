@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { PlusCircle, Users, ClipboardCheck, Calendar, TrendingUp } from "lucide-react";
@@ -19,13 +18,9 @@ type Visit = {
   createdAt?: string;
   clientName?: string;
   date?: string;
+  time?: string;
   type?: string;
 };
-
-type VisitsByDayData = {
-  date: string;
-  count: number;
-}[];
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -38,7 +33,9 @@ const Dashboard = () => {
     visitsThisMonth: 0,
   });
   const [recentActivity, setRecentActivity] = useState<Visit[]>([]);
-  const [visitsByDay, setVisitsByDay] = useState<VisitsByDayData>([]);
+  const [visitsByDay, setVisitsByDay] = useState<any[]>([]);
+  const [todayVisitsList, setTodayVisitsList] = useState<Visit[]>([]);
+  const [showTodayModal, setShowTodayModal] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -73,7 +70,7 @@ const Dashboard = () => {
     get(visitsQuery)
       .then((snapshot) => {
         const visitsData = snapshot.val();
-        console.log("Datos de visitas filtrados:", snapshot.val());
+        console.log("Datos de visitas filtrados:", visitsData);
         const allVisits = visitsData ? (Object.values(visitsData) as Visit[]) : [];
         console.log("Visitas convertidas en array (get):", allVisits);
         const totalVisits = allVisits.length;
@@ -83,9 +80,11 @@ const Dashboard = () => {
         const todayStr = format(new Date(), "yyyy-MM-dd");
         const currentMonthStr = format(new Date(), "yyyy-MM");
 
-        const visitsToday = allVisits.filter(
+        // Filtrar visitas de hoy
+        const visitsTodayArr = allVisits.filter(
           (visit) => visit.createdAt && visit.createdAt.startsWith(todayStr)
-        ).length;
+        );
+        const visitsTodayCount = visitsTodayArr.length;
 
         const visitsThisMonth = allVisits.filter(
           (visit) => visit.createdAt && visit.createdAt.startsWith(currentMonthStr)
@@ -95,9 +94,11 @@ const Dashboard = () => {
           ...prev,
           totalVisits,
           pendingVisits,
-          visitsToday,
+          visitsToday: visitsTodayCount,
           visitsThisMonth,
         }));
+
+        setTodayVisitsList(visitsTodayArr); // Guardar la lista de visitas de hoy
 
         // Procesar datos para el gráfico de visitas por día
         processVisitsByDay(allVisits);
@@ -117,46 +118,32 @@ const Dashboard = () => {
   }, [user, navigate]);
 
   const processVisitsByDay = (visits: Visit[]) => {
-    // Crear array con todos los días del mes actual
     const today = new Date();
     const firstDay = startOfMonth(today);
     const lastDay = endOfMonth(today);
     
-    // Generar array con todos los días del mes
     const daysInMonth = eachDayOfInterval({ start: firstDay, end: lastDay });
     
-    // Inicializar conteo por día
     const dailyVisits = daysInMonth.map(day => ({
       date: format(day, "yyyy-MM-dd"),
       count: 0
     }));
     
-    // Contar visitas por día
     visits.forEach(visit => {
       if (visit.createdAt) {
-        // 🔍 Aquí registramos el valor exacto de createdAt
-        console.log("visit.createdAt (string ISO):", visit.createdAt);
-
         const visitDate = parseISO(visit.createdAt);
-        console.log("visitDate (Date object):", visitDate);
-
-        // Verificamos si la fecha está dentro del mes actual
         if (isWithinInterval(visitDate, { start: firstDay, end: lastDay })) {
           const dateStr = format(visitDate, "yyyy-MM-dd");
-          const dayIndex = dailyVisits.findIndex((d) => d.date === dateStr);
+          const dayIndex = dailyVisits.findIndex(d => d.date === dateStr);
           if (dayIndex !== -1) {
             dailyVisits[dayIndex].count++;
           }
-        } else {
-        console.log("Esta visita no pertenece al mes actual:", visitDate);
+        }
       }
-    } else {
-      console.log("Esta visita no tiene createdAt:", visit);
-    }
-  });   
-
-  console.log("Resultado final dailyVisits:", dailyVisits); // log para depuración
-  setVisitsByDay(dailyVisits);
+    });
+    
+    console.log("Datos diarios del mes actual:", dailyVisits);
+    setVisitsByDay(dailyVisits);
   };
 
   const navigateToNewVisit = () => {
@@ -252,6 +239,8 @@ const Dashboard = () => {
             <div className="grid grid-cols-2 gap-4">
               {/* Tarjeta Visitas Hoy */}
               <motion.div
+                onClick={() => setShowTodayModal(true)}
+                className="cursor-pointer"
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.3, duration: 0.3 }}
@@ -271,7 +260,7 @@ const Dashboard = () => {
                 </Card>
               </motion.div>
 
-              {/* Tarjeta Visitas Este Mes (Modificada) */}
+              {/* Tarjeta Visitas Este Mes */}
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -332,6 +321,29 @@ const Dashboard = () => {
         </div>
         <Navbar />
       </div>
+
+      {/* Modal para mostrar la lista de visitas de hoy */}
+      {showTodayModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
+          <div className="bg-white rounded-lg p-6 w-300">
+            <h2 className="text-xl font-bold mb-4">Visitas de Hoy</h2>
+            <ul className="max-h-60 overflow-y-auto">
+              {todayVisitsList.length > 0 ? (
+                todayVisitsList.map((visit) => (
+                  <li key={visit.id} className="mb-2">
+                    <span className="text-base text-gray-950">{visit.time}</span>
+                    {" - "}
+                    <span className="text-base text-gray-950">{visit.clientName}</span>
+                  </li>
+                ))
+              ) : (
+                <li className="text-sm text-gray-500">No hay visitas hoy</li>
+              )}
+            </ul>
+            <Button onClick={() => setShowTodayModal(false)}>Cerrar</Button>
+          </div>
+        </div>
+      )}
     </PageTransition>
   );
 };
