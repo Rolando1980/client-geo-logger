@@ -326,14 +326,14 @@ const Dashboard = () => {
       {showTodayModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
           <div className="bg-white rounded-lg p-6 w-300">
-            <h2 className="text-xl font-bold mb-4">Visitas de Hoy</h2>
+            <h2 className="text-lg font-bold mb-4">Visitas de Hoy</h2>
             <ul className="max-h-60 overflow-y-auto">
               {todayVisitsList.length > 0 ? (
                 todayVisitsList.map((visit) => (
                   <li key={visit.id} className="mb-2">
-                    <span className="text-base text-gray-950">{visit.time}</span>
+                    <span className="text-xs text-gray-950">{visit.time}</span>
                     {" - "}
-                    <span className="text-base text-gray-950">{visit.clientName}</span>
+                    <span className="text-xs text-gray-950">{visit.clientName}</span>
                   </li>
                 ))
               ) : (
