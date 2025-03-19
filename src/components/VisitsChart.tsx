@@ -1,8 +1,8 @@
 
 import React from "react";
-import { formatDate, getDaysInMonth, startOfMonth, eachDayOfInterval, endOfMonth } from "date-fns";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { format, formatDate } from "date-fns";
 import { es } from "date-fns/locale";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 type VisitsByDayData = {
   date: string;
@@ -24,6 +24,7 @@ const VisitsChart: React.FC<VisitsChartProps> = ({ visitsByDay }) => {
           strokeWidth={2} 
           dot={false}
           isAnimationActive={true}
+          activeDot={{ r: 4, fill: "#4ade80", stroke: "#fff", strokeWidth: 2 }}
         />
         <Tooltip 
           contentStyle={{ 
@@ -35,7 +36,12 @@ const VisitsChart: React.FC<VisitsChartProps> = ({ visitsByDay }) => {
             padding: "4px 8px"
           }}
           formatter={(value) => [`${value} visitas`, ""]}
-          labelFormatter={(label) => formatDate(new Date(label), "d MMM", { locale: es })}
+          labelFormatter={(label) => {
+            const date = new Date(label);
+            const day = date.getDate();
+            const month = format(date, "MMM", { locale: es });
+            return `${day} ${month}`;
+          }}
         />
       </LineChart>
     </ResponsiveContainer>
