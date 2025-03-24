@@ -17,7 +17,7 @@ const Navbar = () => {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-brand-gray-light shadow-lg z-50">
+    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-brand-gray-light shadow-lg z-[9999]">
       <div className="flex justify-around items-center h-16">
         {navItems.map((item) => (
           <Link

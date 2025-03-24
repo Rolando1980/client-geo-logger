@@ -245,13 +245,14 @@ const Dashboard = () => {
             <div className="grid grid-cols-2 gap-4">
               {/* Tarjeta Visitas Hoy */}
               <motion.div
-                onClick={() => setShowTodayModal(true)}
-                className="cursor-pointer"
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.3, duration: 0.3 }}
               >
-                <Card className="bg-white/90 shadow-md">
+                <Card 
+                  className="bg-white/90 shadow-md cursor-pointer"
+                  onClick={() => setShowTodayModal(true)}
+                >
                   <CardContent className="p-4">
                     <div className="flex justify-between items-center">
                       <div>

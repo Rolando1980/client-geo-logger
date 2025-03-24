@@ -41,7 +41,7 @@ const LocationMapMultiple: React.FC<LocationMapMultipleProps> = ({ visits }) => 
 
   return (
     <div className="rounded-md overflow-hidden">
-      <div className="h-64 w-full rounded-md overflow-hidden border border-gray-200 mt-2">
+      <div className="leaflet-lower h-64 w-full rounded-md overflow-hidden border border-gray-200 mt-2">
         <MapContainer center={center} zoom={13} style={{ height: "100%", width: "100%" }} zoomControl={false}>
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

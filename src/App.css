@@ -40,3 +40,18 @@
 .read-the-docs {
   color: #888;
 }
+
+.leaflet-container {
+  z-index: 0 !important;
+}
+
+/* Forzar z-index bajo en todas las capas de Leaflet */
+.leaflet-map-pane,
+.leaflet-tile-pane,
+.leaflet-overlay-pane,
+.leaflet-shadow-pane,
+.leaflet-marker-pane,
+.leaflet-tooltip-pane,
+.leaflet-popup-pane {
+  z-index: 0 !important;
+}
