@@ -11,6 +11,7 @@ import { database } from "@/firebase/config";
 import { ref, get, query, orderByChild, equalTo } from "firebase/database";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isWithinInterval, parseISO } from "date-fns";
 import VisitsChart from "@/components/VisitsChart";
+import LocationMapMultiple from "@/components/LocationMapMultiple";
 
 type Visit = {
   id?: string;
@@ -20,6 +21,8 @@ type Visit = {
   date?: string;
   time?: string;
   type?: string;
+  latitude: number;
+  longitude: number;
 };
 
 const Dashboard = () => {
@@ -35,6 +38,7 @@ const Dashboard = () => {
   const [recentActivity, setRecentActivity] = useState<Visit[]>([]);
   const [visitsByDay, setVisitsByDay] = useState<any[]>([]);
   const [todayVisitsList, setTodayVisitsList] = useState<Visit[]>([]);
+  const [monthlyVisits, setMonthlyVisits] = useState<Visit[]>([]);
   const [showTodayModal, setShowTodayModal] = useState(false);
 
   useEffect(() => {
@@ -74,7 +78,6 @@ const Dashboard = () => {
         const allVisits = visitsData ? (Object.values(visitsData) as Visit[]) : [];
         console.log("Visitas convertidas en array (get):", allVisits);
         const totalVisits = allVisits.length;
-        console.log("Total de visitas (get):", totalVisits);
         const pendingVisits = allVisits.filter((visit) => visit.status === "pending").length;
 
         const todayStr = format(new Date(), "yyyy-MM-dd");
@@ -86,9 +89,11 @@ const Dashboard = () => {
         );
         const visitsTodayCount = visitsTodayArr.length;
 
-        const visitsThisMonth = allVisits.filter(
+        // Filtrar visitas del mes actual
+        const visitsMonthArr = allVisits.filter(
           (visit) => visit.createdAt && visit.createdAt.startsWith(currentMonthStr)
-        ).length;
+        );
+        const visitsThisMonth = visitsMonthArr.length;
 
         setStats((prev) => ({
           ...prev,
@@ -98,7 +103,8 @@ const Dashboard = () => {
           visitsThisMonth,
         }));
 
-        setTodayVisitsList(visitsTodayArr); // Guardar la lista de visitas de hoy
+        setTodayVisitsList(visitsTodayArr);
+        setMonthlyVisits(visitsMonthArr);
 
         // Procesar datos para el gráfico de visitas por día
         processVisitsByDay(allVisits);
@@ -288,35 +294,21 @@ const Dashboard = () => {
             </div>
           </section>
 
-          <section>
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold">Actividad Reciente</h2>
+          {/* Nueva sección: Mapa de Visitas del Mes */}
+          <section className="mb-8">
+            <div className="bg-white shadow-md rounded-lg p-4">
+              <h2 className="text-lg font-semibold mb-4">Mapa de Visitas del Mes</h2>
+              <LocationMapMultiple 
+                visits={monthlyVisits.map((visit) => ({
+                  id: visit.id,
+                  clientName: visit.clientName,
+                  date: visit.date || visit.createdAt || "",
+                  time: visit.time || "",
+                  latitude: visit.latitude,
+                  longitude: visit.longitude,
+                }))}
+              />
             </div>
-            <AnimatePresence>
-              {recentActivity.map((activity, index) => (
-                <motion.div
-                  key={activity.id || index}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ delay: index * 0.1, duration: 0.3 }}
-                >
-                  <Card className="mb-3 bg-white/90 shadow-sm">
-                    <CardContent className="p-4">
-                      <div className="flex items-center">
-                        <div className="mr-3">
-                          {getIcon(activity.type || "visit")}
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-medium">{activity.clientName}</p>
-                          <p className="text-xs text-brand-gray">{activity.date}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
-            </AnimatePresence>
           </section>
         </div>
         <Navbar />
@@ -325,22 +317,26 @@ const Dashboard = () => {
       {/* Modal para mostrar la lista de visitas de hoy */}
       {showTodayModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
-          <div className="bg-white rounded-lg p-6 w-300">
-            <h2 className="text-lg font-bold mb-4">Visitas de Hoy</h2>
-            <ul className="max-h-60 overflow-y-auto">
+          <div className="bg-white rounded-lg p-6 w-[350px]">
+            <h2 className="text-2xl font-bold mb-4">Visitas de Hoy</h2>
+            <ul className="max-h-60 overflow-y-auto mb-4">
               {todayVisitsList.length > 0 ? (
                 todayVisitsList.map((visit) => (
                   <li key={visit.id} className="mb-2">
-                    <span className="text-xs text-gray-950">{visit.time}</span>
+                    <span className="text-sm text-gray-900">{visit.time}</span>
                     {" - "}
-                    <span className="text-xs text-gray-950">{visit.clientName}</span>
+                    <span className="text-base font-medium text-gray-800">{visit.clientName}</span>
                   </li>
                 ))
               ) : (
                 <li className="text-sm text-gray-500">No hay visitas hoy</li>
               )}
             </ul>
-            <Button onClick={() => setShowTodayModal(false)}>Cerrar</Button>
+            <div className="mt-4">
+              <Button className="text-lg font-semibold" onClick={() => setShowTodayModal(false)}>
+                Cerrar
+              </Button>
+            </div>
           </div>
         </div>
       )}
