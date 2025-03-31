@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -119,14 +118,28 @@ const ClientForm = () => {
       if (isValid) {
         setFormData((prev) => ({ ...prev, [name]: newValue }));
       }
+    } else if (name === "phone") {
+    // Validar el campo celular: solo números, máximo 9 dígitos, debe iniciar con 9
+    let newValue = value.replace(/\D/g, ""); // eliminar cualquier caracter que no sea dígito
+
+    // Si no comienza con "9", forzamos que inicie con 9 (esto se puede ajustar según la UX deseada)
+    if (!newValue.startsWith("9")) {
+      newValue = "9" + newValue;
+    }
+    
+    // Limitar a 9 dígitos
+    newValue = newValue.slice(0, 9);
+    
+      setFormData((prev) => ({ ...prev, [name]: newValue }));
     } else {
       setFormData((prev) => ({
         ...prev,
-        [name]: name === "name" || name === "contactName"
-          ? value.toUpperCase()
-          : name === "email"
-          ? value.toLowerCase()
-          : value,
+        [name]:
+          name === "name" || name === "contactName"
+            ? value.toUpperCase()
+            : name === "email"
+            ? value.toLowerCase()
+            : value,
       }));
     }
   };

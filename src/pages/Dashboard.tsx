@@ -317,7 +317,7 @@ const Dashboard = () => {
 
       {/* Modal para mostrar la lista de visitas de hoy */}
       {showTodayModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-[9999]">
           <div className="bg-white rounded-lg p-6 w-[350px]">
             <h2 className="text-2xl font-bold mb-4">Visitas de Hoy</h2>
             <ul className="max-h-60 overflow-y-auto mb-4">
