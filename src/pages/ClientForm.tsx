@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, Save } from "lucide-react";
@@ -59,6 +59,18 @@ const ClientForm = () => {
   });
 
   const [locationDisplay, setLocationDisplay] = useState("");
+  // Estado para el término de búsqueda en la lista de ubicaciones
+  const [locationSearch, setLocationSearch] = useState("");
+
+  // Filtrar las opciones de ubicación según el término de búsqueda
+  const filteredLocationOptions = locationOptions.filter((location) => {
+    const combined = `${location.department} ${location.province} ${location.district}`.toLowerCase();
+    return combined.includes(locationSearch.toLowerCase());
+  });
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filteredLocations, setFilteredLocations] = useState(locationOptions);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const fetchClient = async () => {
@@ -88,7 +100,7 @@ const ClientForm = () => {
     };
 
     fetchClient();
-  }, [isEditing, id, user?.uid]);
+  }, [isEditing, id, user?.uid, toast]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -100,10 +112,10 @@ const ClientForm = () => {
       // Validaciones específicas según el tipo de documento
       if (formData.documentType === "DNI") {
         // Solo permitir dígitos y máximo 8 caracteres
-        newValue = value.replace(/\D/g, '').slice(0, 8);
+        newValue = value.replace(/\D/g, "").slice(0, 8);
       } else if (formData.documentType === "RUC") {
         // Solo permitir dígitos y máximo 11 caracteres
-        newValue = value.replace(/\D/g, '').slice(0, 11);
+        newValue = value.replace(/\D/g, "").slice(0, 11);
         // Validar que comience con 10, 15, 17 o 20
         if (newValue.length >= 2) {
           const prefix = newValue.substring(0, 2);
@@ -119,17 +131,17 @@ const ClientForm = () => {
         setFormData((prev) => ({ ...prev, [name]: newValue }));
       }
     } else if (name === "phone") {
-    // Validar el campo celular: solo números, máximo 9 dígitos, debe iniciar con 9
-    let newValue = value.replace(/\D/g, ""); // eliminar cualquier caracter que no sea dígito
+      // Validar el campo celular: solo números, máximo 9 dígitos, debe iniciar con 9
+      let newValue = value.replace(/\D/g, ""); // eliminar cualquier caracter que no sea dígito
 
-    // Si no comienza con "9", forzamos que inicie con 9 (esto se puede ajustar según la UX deseada)
-    if (!newValue.startsWith("9")) {
-      newValue = "9" + newValue;
-    }
-    
-    // Limitar a 9 dígitos
-    newValue = newValue.slice(0, 9);
-    
+      // Si no comienza con "9", forzamos que inicie con 9
+      if (!newValue.startsWith("9")) {
+        newValue = "9" + newValue;
+      }
+      
+      // Limitar a 9 dígitos
+      newValue = newValue.slice(0, 9);
+      
       setFormData((prev) => ({ ...prev, [name]: newValue }));
     } else {
       setFormData((prev) => ({
@@ -151,7 +163,7 @@ const ClientForm = () => {
       ...prev,
       district,
       province,
-      department
+      department,
     }));
   };
 
@@ -185,19 +197,19 @@ const ClientForm = () => {
         ...formData,
         userId: user.uid,
         updatedAt: new Date().toISOString(),
-        ...(!isEditing && { createdAt: new Date().toISOString() })
+        ...(!isEditing && { createdAt: new Date().toISOString() }),
       };
 
       if (isEditing && id) {
         await update(ref(database, `clients/${id}`), clientData);
       } else {
-        const newClientRef = ref(database, 'clients');
+        const newClientRef = ref(database, "clients");
         await set(push(newClientRef), clientData);
       }
 
       toast({
         title: isEditing ? "Cliente actualizado" : "Cliente creado",
-        description: `Los datos del cliente se han ${isEditing ? 'actualizado' : 'guardado'} correctamente`,
+        description: `Los datos del cliente se han ${isEditing ? "actualizado" : "guardado"} correctamente`,
       });
       
       navigate("/clients");
@@ -223,12 +235,7 @@ const ClientForm = () => {
         <div className="page-container">
           <header className="pt-6 pb-4">
             <div className="flex items-center mb-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleCancel}
-                className="mr-2"
-              >
+              <Button variant="ghost" size="icon" onClick={handleCancel} className="mr-2">
                 <ArrowLeft size={20} />
               </Button>
               <h1 className="text-2xl font-bold">
@@ -244,9 +251,14 @@ const ClientForm = () => {
                   <Label className="form-label">
                     Tipo Documento <span className="text-red-500">*</span>
                   </Label>
-                  <RadioGroup 
-                    value={formData.documentType} 
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, documentType: value as DocumentType }))}
+                  <RadioGroup
+                    value={formData.documentType}
+                    onValueChange={(value) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        documentType: value as DocumentType,
+                      }))
+                    }
                     className="flex space-x-4 mt-1"
                     required
                   >
@@ -314,30 +326,54 @@ const ClientForm = () => {
                   />
                 </div>
 
+                {/* Campo de Ubicación */}
                 <div className="form-group">
                   <Label htmlFor="location" className="form-label">
                     Distrito / Provincia / Departamento <span className="text-red-500">*</span>
                   </Label>
-                  <Select 
+                  <Select
                     value={locationDisplay}
                     onValueChange={handleLocationChange}
+                    onOpenChange={(isOpen) => {
+                      if (isOpen) {
+                        setTimeout(() => searchInputRef.current?.focus(), 100);
+                      }
+                    }}
                     required
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar ubicación" />
                     </SelectTrigger>
                     <SelectContent>
-                      {locationOptions.map((location, index) => (
-                        <SelectItem 
-                          key={index} 
-                          value={`${location.district}, ${location.province}, ${location.department}`}
-                        >
-                          {location.district}, {location.province}, {location.department}
-                        </SelectItem>
-                      ))}
+                      {/* Campo de búsqueda con autoFocus al abrir */}
+                      <div className="p-2">
+                        <Input
+                          ref={searchInputRef}
+                          placeholder="Buscar ubicación..."
+                          value={locationSearch}
+                          onChange={(e) => setLocationSearch(e.target.value)}
+                          autoFocus
+                        />
+                      </div>
+                      {/* Opciones filtradas */}
+                      {filteredLocationOptions.length > 0 ? (
+                        filteredLocationOptions.map((location, index) => (
+                          <SelectItem
+                            key={index}
+                            value={`${location.department}, ${location.province}, ${location.district}`}
+                          >
+                            {location.department}, {location.province}, {location.district}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <div className="p-2 text-sm text-gray-500">
+                          No se encontraron coincidencias
+                        </div>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
+
 
                 <div className="form-group">
                   <Label htmlFor="email" className="form-label">
